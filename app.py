@@ -1,9 +1,35 @@
 import streamlit as st
 
-st.set_page_config(page_title="Simulateur Fiscal Expert", layout="wide")
+# Configuration de la page
+st.set_page_config(page_title="Expert PER & CEHR - Simulation", layout="wide")
 
-def calculer_impot_detaille(rni, parts):
-    """Calcule l'impôt et ventile les revenus par tranche"""
+# --- STYLE CSS PERSONNALISÉ ---
+st.markdown("""
+    <style>
+    .stApp { background-color: #f8fafc; }
+    .main-title { color: #1e3a8a; font-weight: 800; text-align: center; }
+    .metric-card { background-color: #ffffff; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); border-top: 5px solid #1e3a8a; }
+    .cehr-alert { background-color: #fef3c7; border-left: 5px solid #d97706; padding: 15px; border-radius: 8px; color: #92400e; }
+    .tranche-info { font-size: 0.9em; color: #475569; margin-bottom: 5px; }
+    </style>
+    """, unsafe_allow_html=True)
+
+# --- LOGIQUE FISCALE ---
+
+def calculer_cehr(rfr, situation):
+    """Calcule la CEHR selon les seuils 2025"""
+    seuil_3 = 500000 if situation == "Marié(e) / Pacsé(e)" else 250000
+    seuil_4 = 1000000 if situation == "Marié(e) / Pacsé(e)" else 500000
+    
+    taxe = 0
+    if rfr > seuil_4:
+        taxe = (seuil_4 - seuil_3) * 0.03 + (rfr - seuil_4) * 0.04
+    elif rfr > seuil_3:
+        taxe = (rfr - seuil_3) * 0.03
+    return round(taxe)
+
+def simulation_fiscale_complete(rni, parts, situation):
+    """Calcule l'IR net, la TMI, la ventilation des tranches et la CEHR"""
     bareme = [
         (0, 11294, 0.00),
         (11294, 28797, 0.11),
@@ -13,89 +39,118 @@ def calculer_impot_detaille(rni, parts):
     ]
     
     quotient = rni / parts
-    impot_total = 0
+    impot_brut_total = 0
     tmi = 0
-    ventilation = {0.11: 0, 0.30: 0, 0.41: 0, 0.45: 0}
+    ventilation = {11: 0, 30: 0, 41: 0, 45: 0}
     
-    for seuil_bas, seuil_haut, taux in bareme:
-        if quotient > seuil_bas:
-            assiette_tranche = min(quotient, seuil_haut) - seuil_bas
-            impot_tranche = assiette_tranche * taux
-            impot_total += impot_tranche
+    # 1. Calcul de l'IR au barème
+    for sb, sh, taux in bareme:
+        if quotient > sb:
+            assiette_tranche = min(quotient, sh) - sb
+            impot_brut_total += assiette_tranche * taux
             if taux > 0:
-                ventilation[taux] = assiette_tranche * parts
+                ventilation[int(taux*100)] = round(assiette_tranche * parts)
             if assiette_tranche > 0:
                 tmi = int(taux * 100)
     
-    impot_final = impot_total * parts
+    impot_ir = impot_brut_total * parts
     
-    # Gestion du plafonnement du quotient familial (1759€ par demi-part sup)
-    parts_base = 2.0 if parts >= 2.0 else 1.0
-    # Calcul rapide impôt de base pour comparaison
-    impot_base_brut = 0
-    q_base = rni / parts_base
-    for sb, sh, t in bareme:
-        if q_base > sb:
-            impot_base_brut += (min(q_base, sh) - sb) * t
-    
-    impot_base = impot_base_brut * parts_base
-    plafond_legal = (parts - parts_base) * 2 * 1759
-    
-    if (impot_base - impot_final) > plafond_legal:
-        impot_final = impot_base - plafond_legal
+    # 2. Plafonnement du quotient familial (1 759€ par demi-part sup)
+    parts_base = 2.0 if situation == "Marié(e) / Pacsé(e)" else 1.0
+    if parts > parts_base:
+        impot_base_unitaire = 0
+        q_base = rni / parts_base
+        for sb, sh, t in bareme:
+            if q_base > sb:
+                impot_base_unitaire += (min(q_base, sh) - sb) * t
         
-    return round(impot_final), tmi, ventilation
+        impot_base = impot_base_unitaire * parts_base
+        gain_parts = impot_base - impot_ir
+        gain_max_autorise = (parts - parts_base) * 2 * 1759
+        
+        if gain_parts > gain_max_autorise:
+            impot_ir = impot_base - gain_max_autorise
+            
+    # 3. Calcul CEHR
+    taxe_cehr = calculer_cehr(rni, situation)
+    
+    return round(impot_ir), tmi, ventilation, taxe_cehr
 
-# --- UI ---
-st.title("🏛️ Simulateur Fiscal & Stratégie PER")
+# --- INTERFACE UTILISATEUR ---
+
+st.markdown('<h1 class="main-title">🏛️ Audit Fiscal & Optimisation PER</h1>', unsafe_allow_html=True)
+st.write("---")
 
 with st.sidebar:
-    st.header("Paramètres du foyer")
-    sit = st.radio("Situation familiale", ["Célibataire", "Marié(e) / Pacsé(e)"])
-    rev = st.number_input("Revenu Net Imposable (€)", value=70000, step=1000)
-    enfants = st.number_input("Nombre d'enfants", 0, 10, 2)
+    st.header("⚙️ Configuration du Foyer")
+    sit = st.radio("Situation Maritale", ["Célibataire", "Marié(e) / Pacsé(e)"])
+    rev_imposable = st.number_input("Revenu Fiscal de Référence (€)", value=120000, step=5000)
+    enfants = st.number_input("Nombre d'enfants", 0, 15, 2)
     
-    # Calcul des parts
-    base = 2.0 if sit == "Marié(e) / Pacsé(e)" else 1.0
+    # Calcul des parts fiscales
+    base_p = 2.0 if sit == "Marié(e) / Pacsé(e)" else 1.0
     if enfants <= 2:
-        parts = base + (enfants * 0.5)
+        parts_totales = base_p + (enfants * 0.5)
     else:
-        parts = base + 1.0 + (enfants - 2)
+        parts_totales = base_p + 1.0 + (enfants - 2)
     
-    st.write(f"**Nombre de parts : {parts}**")
+    st.info(f"Nombre de parts : **{parts_totales}**")
     
-    st.header("Action PER")
-    dispo_per = st.number_input("Plafond disponible (€)", value=10000)
-    versement = st.slider("Montant du versement (€)", 0, int(dispo_per), 5000)
+    st.header("📈 Stratégie PER")
+    plafond_dispo = st.number_input("Plafond PER disponible (€)", value=15000)
+    versement = st.slider("Versement envisagé (€)", 0, int(plafond_dispo), 5000)
 
-# Calculs
-impot_base, tmi, ventilo = calculer_impot_detaille(rev, parts)
-impot_per, tmi_per, _ = calculer_impot_detaille(rev - versement, parts)
-gain = impot_base - impot_per
+# --- CALCULS ---
+ir_initial, tmi_init, vent_init, cehr_init = simulation_fiscale_complete(rev_imposable, parts_totales, sit)
+ir_per, tmi_per, vent_per, cehr_per = simulation_fiscale_complete(rev_imposable - versement, parts_totales, sit)
 
-# Affichage
+gain_ir = ir_initial - ir_per
+gain_cehr = cehr_init - cehr_per
+gain_total = gain_ir + gain_cehr
+
+# --- AFFICHAGE DES RÉSULTATS ---
+
 col1, col2 = st.columns(2)
 
 with col1:
-    st.subheader("Analyse de votre imposition")
-    st.metric("Impôt actuel", f"{impot_base:,} €".replace(',', ' '))
-    
-    st.write("🔍 **Revenus imposés par tranche (avant PER) :**")
-    for taux, montant in reversed(ventilo.items()):
-        if montant > 0:
-            pct = int(taux * 100)
-            st.write(f"- Tranche à **{pct}%** : **{round(montant):,} €**".replace(',', ' '))
-
-with col2:
-    st.subheader("Optimisation PER")
-    st.metric("Gain Fiscal", f"{gain:,} €".replace(',', ' '), delta_color="normal")
-    
+    st.subheader("📊 État des lieux actuel")
     st.markdown(f"""
-    <div style="background-color:#1e3a8a; color:white; padding:15px; border-radius:10px;">
-        <b>Bilan :</b> En versant {versement:,} €, votre impôt tombe à {impot_per:,} €.<br>
-        <i>Votre TMI passe de {tmi}% à {tmi_per}%.</i>
+    <div class="metric-card">
+        <small>IMPÔT TOTAL (IR + CEHR)</small>
+        <h2>{ir_initial + cehr_init:,} €</h2>
     </div>
     """.replace(',', ' '), unsafe_allow_html=True)
+    
+    st.write("")
+    st.write("**Décomposition par tranches :**")
+    for t, m in reversed(vent_init.items()):
+        if m > 0:
+            st.markdown(f'<div class="tranche-info">Tranche <b>{t}%</b> : {m:,} € imposés</div>'.replace(',', ' '), unsafe_allow_html=True)
+    
+    if cehr_init > 0:
+        st.warning(f"⚠️ Dont CEHR : {cehr_init:,} €".replace(',', ' '))
 
-    if gain > 0:
-        st.info(f"Votre effort d'épargne réel est de **{versement - gain:,} €**.".replace(',', ' '))
+with col2:
+    st.subheader("💡 Après optimisation PER")
+    st.markdown(f"""
+    <div class="metric-card" style="border-top: 5px solid #10b981;">
+        <small>GAIN FISCAL IMMÉDIAT</small>
+        <h2 style="color: #10b981;">{gain_total:,} €</h2>
+    </div>
+    """.replace(',', ' '), unsafe_allow_html=True)
+    
+    st.write("")
+    st.write(f"**Nouvel impôt total :** {ir_per + cehr_per:,} €".replace(',', ' '))
+    st.write(f"**Effort d'épargne réel :** {versement - gain_total:,} €".replace(',', ' '))
+    
+    if gain_cehr > 0:
+        st.success(f"🔥 Bonus : Le PER vous fait économiser {gain_cehr:,} € de CEHR !")
+
+st.write("---")
+st.subheader("📍 Analyse de l'Expert")
+if tmi_init >= 30:
+    st.success(f"Votre TMI de **{tmi_init}%** rend le PER extrêmement puissant. L'État finance {round((gain_total/versement)*100) if versement > 0 else 0}% de votre épargne retraite.")
+else:
+    st.info("Votre TMI est de 11%. Le PER est moins prioritaire que d'autres leviers, sauf si vous prévoyez une hausse de revenus future.")
+
+st.caption("Simulation basée sur les barèmes fiscaux 2025. Cette estimation ne remplace pas un audit patrimonial complet.")
