@@ -1,11 +1,32 @@
 import streamlit as st
 
-st.set_page_config(page_title="Audit Fiscal Foyer & 6QS", layout="wide")
+st.set_page_config(page_title="Audit Fiscal Expert - Le Mans", layout="wide")
 
-def simulation_fiscale(revenu_foyer, parts, versement_total=0):
-    base_imposable = (revenu_foyer * 0.9) - versement_total
-    if base_imposable < 0: base_imposable = 0
+def calculer_parts(situation, enfants_pleins, enfants_partages):
+    # Base selon situation
+    base = 2.0 if situation in ["Marié(e)", "Pacsé(e)"] else 1.0
     
+    # Calcul parts enfants (Règle : 0.5 pour les 2 premiers, 1.0 ensuite)
+    parts_enfants = 0
+    total_enfants_compte = 0
+    
+    # On traite d'abord les enfants à charge pleine
+    for _ in range(enfants_pleins):
+        total_enfants_compte += 1
+        parts_enfants += 1.0 if total_enfants_compte > 2 else 0.5
+        
+    # On traite ensuite les gardes partagées
+    for _ in range(enfants_partages):
+        total_enfants_compte += 1
+        parts_enfants += 0.5 if total_enfants_compte > 2 else 0.25
+        
+    return base + parts_enfants
+
+def simulation_fiscale(rev_total, parts, versement_per=0):
+    # Abattement 10% sur revenus (simplifié) - Le foncier/capitaux ont des régimes propres
+    # mais pour une grosse maille PER, on reste sur le RNI
+    base_imposable = (rev_total * 0.9) - versement_per
+    if base_imposable < 0: base_imposable = 0
     quotient = base_imposable / parts
     
     # Barème 2025
@@ -23,65 +44,83 @@ def simulation_fiscale(revenu_foyer, parts, versement_total=0):
     return round(impot_par_part * parts), tmi
 
 # --- INTERFACE ---
-st.title("👨‍👩‍👧‍👦 Audit Fiscal & Optimisation PER")
+st.title("🏦 Audit Fiscal Patrimonial")
+st.markdown("---")
 
-# 1. SITUATION FAMILIALE
-st.header("1. Votre Situation")
-situation = st.radio("Situation maritale", ["Célibataire / Divorcé(e) / Veuf(ve)", "Marié(e) / PACS (Déclaration commune)"], horizontal=True)
+# 1. SITUATION MARITALE ET ENFANTS
+st.header("1. Composition du foyer fiscal")
+col_sit, col_enf = st.columns([1, 1])
 
-is_couple = "Marié(e)" in situation
-nb_parts = st.number_input("Nombre de parts fiscales", value=2.0 if is_couple else 1.0, step=0.5)
+with col_sit:
+    sit_mat = st.selectbox("Situation familiale", ["Célibataire", "Marié(e)", "Pacsé(e)", "Concubinage"])
+    is_commune = sit_mat in ["Marié(e)", "Pacsé(e)"]
+    if sit_mat == "Concubinage":
+        st.caption("ℹ️ Le concubinage impose des déclarations séparées.")
 
-# 2. REVENUS ET PLAFONDS
-st.header("2. Revenus et Disponibles PER")
+with col_enf:
+    e_pleins = st.number_input("Enfants à charge pleine", min_value=0, step=1, value=0)
+    e_partages = st.number_input("Enfants en garde partagée", min_value=0, step=1, value=0)
 
-if not is_couple:
-    col1, col2 = st.columns(2)
-    rev_foyer = col1.number_input("Votre Revenu Net Imposable (€)", value=50000, step=1000)
-    p1 = col2.number_input("Plafond cumulé disponible (€)", value=5000)
-    plafond_dispo_total = p1
-    mutualisation = False
-else:
-    col1, col2 = st.columns(2)
-    with col1:
-        st.subheader("Conjoint 1")
-        rev1 = st.number_input("Revenu Net Imposable C1 (€)", value=60000, step=1000)
-        p1 = st.number_input("Plafond cumulé C1 (€)", value=6000)
-    with col2:
-        st.subheader("Conjoint 2")
-        rev2 = st.number_input("Revenu Net Imposable C2 (€)", value=20000, step=1000)
-        p2 = st.number_input("Plafond cumulé C2 (€)", value=2000)
-    
-    rev_foyer = rev1 + rev2
-    
-    st.markdown("---")
-    mutualisation = st.checkbox("Option 6QS : Mutualiser les plafonds des conjoints", value=False)
-    
-    if mutualisation:
-        plafond_dispo_total = p1 + p2
-        st.success(f"✅ Mutualisation activée : Plafond global du foyer = {plafond_dispo_total} €")
+parts_calculees = calculer_parts(sit_mat, e_pleins, e_partages)
+st.subheader(f"📊 Nombre de parts : {parts_calculees}")
+
+# 2. REVENUS DÉTAILLÉS
+st.header("2. Analyse des revenus (Avis d'imposition)")
+st.caption("Saisissez les montants bruts avant abattement")
+
+c1, c2, c3 = st.columns(3)
+
+with c1:
+    st.subheader("👤 Déclarant 1")
+    sal1 = st.number_input("Salaires / Pensions (Case 1AJ)", value=0, step=1000)
+    fonc1 = st.number_input("Revenus fonciers (Case 4BA)", value=0, step=1000)
+    cap1 = st.number_input("Revenus capitaux (Case 2TR)", value=0, step=1000)
+    st.markdown("**Plafonds PER non utilisés :**")
+    p1_24 = st.number_input("Plafond 2024 (C1)", value=0)
+    p1_23 = st.number_input("Plafond 2023 (C1)", value=0)
+    p1_22 = st.number_input("Plafond 2022 (C1)", value=0)
+
+with c2:
+    if is_commune:
+        st.subheader("👤 Déclarant 2")
+        sal2 = st.number_input("Salaires / Pensions (Case 1BJ)", value=0, step=1000)
+        fonc2 = st.number_input("Revenus fonciers (Case 4BE)", value=0, step=1000)
+        cap2 = st.number_input("Revenus capitaux (Case 2TS)", value=0, step=1000)
+        st.markdown("**Plafonds PER non utilisés :**")
+        p2_24 = st.number_input("Plafond 2024 (C2)", value=0)
+        p2_23 = st.number_input("Plafond 2023 (C2)", value=0)
+        p2_22 = st.number_input("Plafond 2022 (C2)", value=0)
     else:
-        plafond_dispo_total = p1 + p2 # On garde le total pour le slider, mais on prévient
-        st.info("ℹ️ Sans mutualisation, chaque conjoint est limité à son propre plafond.")
+        st.info("Déclarant 2 (Non applicable)")
+        sal2, fonc2, cap2, p2_24, p2_23, p2_22 = 0, 0, 0, 0, 0, 0
 
-# 3. SIMULATION DU VERSEMENT
-st.header("3. Simulation du versement")
-versement = st.slider("Montant total versé sur le(s) PER (€)", 0, int(plafond_dispo_total), int(p1))
+with c3:
+    st.subheader("🧒 Enfants rattachés")
+    sal_e = st.number_input("Revenus des enfants (Case 1CJ)", value=0, step=1000)
+    st.caption("Uniquement si l'enfant a ses propres revenus imposables.")
 
-# Calculs
-impot_sans, tmi = simulation_fiscale(rev_foyer, nb_parts)
-impot_avec, _ = simulation_fiscale(rev_foyer, nb_parts, versement)
-gain = impot_sans - impot_avec
+# Calcul globaux
+revenu_global = sal1 + fonc1 + cap1 + sal2 + fonc2 + cap2 + sal_e
+plafond_total = p1_24 + p1_23 + p1_22 + p2_24 + p2_23 + p2_22
 
-# 4. RÉSULTATS
+# 3. OPTIMISATION PER
+st.header("3. Simulation d'optimisation")
+if is_commune:
+    opt_6qs = st.checkbox("Mutualisation des plafonds (Case 6QS)")
+else:
+    opt_6qs = False
+
+versement = st.slider("Montant du versement PER souhaité (€)", 0, int(plafond_total) if plafond_total > 0 else 10000, 0)
+
+impot_brut, tmi = simulation_fiscale(revenu_global, parts_calculees)
+impot_per, _ = simulation_fiscale(revenu_global, parts_calculees, versement)
+gain = impot_brut - impot_per
+
+# 4. BILAN
 st.divider()
-res1, res2, res3 = st.columns(3)
-res1.metric("Impôt avant", f"{impot_sans:,} €".replace(',', ' '))
-res2.metric("Nouvel Impôt", f"{impot_avec:,} €".replace(',', ' '))
-res3.metric("ÉCONOMIE RÉELLE", f"{gain:,} €".replace(',', ' '), delta=f"-{gain} €", delta_color="normal")
+b1, b2, b3 = st.columns(3)
+b1.metric("Impôt Initial", f"{impot_brut:,} €".replace(',', ' '))
+b2.metric("Économie d'impôt", f"{gain:,} €".replace(',', ' '), delta=f"{tmi}% de gain fiscal")
+b3.metric("Effort de trésorerie", f"{versement - gain:,} €".replace(',', ' '))
 
-st.info(f"**Analyse de l'expert :** Votre TMI est de **{tmi}%**. L'économie d'impôt représente **{round((gain/versement)*100) if versement > 0 else 0}%** de votre effort d'épargne.")
-
-if is_couple and not mutualisation and versement > p1:
-    st.error(f"⚠️ Attention : Sans option 6QS, vous dépassez le plafond individuel de C1 ({p1} €).")
-
+st.info(f"💡 Pour un versement de **{versement:,} €**, votre effort réel est de **{versement - gain:,} €** grâce à votre TMI à {tmi}%.")
