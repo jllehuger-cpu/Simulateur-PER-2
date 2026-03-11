@@ -1,82 +1,87 @@
 import streamlit as st
 
-st.set_page_config(page_title="Audit & Plafonds PER", layout="centered")
+st.set_page_config(page_title="Audit Fiscal Foyer & 6QS", layout="wide")
 
-def simulation_fiscale(revenu, parts, versement_per=0):
-    # Base de calcul avec déduction du versement PER
-    base_imposable = (revenu * 0.9) - versement_per
+def simulation_fiscale(revenu_foyer, parts, versement_total=0):
+    base_imposable = (revenu_foyer * 0.9) - versement_total
     if base_imposable < 0: base_imposable = 0
     
     quotient = base_imposable / parts
     
-    # Barème 2024/2025
+    # Barème 2025
     if quotient <= 11294:
-        impot_par_part = 0
-        tmi = 0
+        impot_par_part, tmi = 0, 0
     elif quotient <= 28797:
-        impot_par_part = (quotient - 11294) * 0.11
-        tmi = 11
+        impot_par_part, tmi = (quotient - 11294) * 0.11, 11
     elif quotient <= 82341:
-        impot_par_part = (quotient - 28797) * 0.30 + 1925.33
-        tmi = 30
+        impot_par_part, tmi = (quotient - 28797) * 0.30 + 1925.33, 30
     elif quotient <= 177106:
-        impot_par_part = (quotient - 82341) * 0.41 + 17988.53
-        tmi = 41
+        impot_par_part, tmi = (quotient - 82341) * 0.41 + 17988.53, 41
     else:
-        impot_par_part = (quotient - 177106) * 0.45 + 56842.18
-        tmi = 45
+        impot_par_part, tmi = (quotient - 177106) * 0.45 + 56842.18, 45
         
-    impot_total = round(impot_par_part * parts)
-    return impot_total, tmi
+    return round(impot_par_part * parts), tmi
 
 # --- INTERFACE ---
-st.title("🎯 Optimisation & Plafonds PER")
+st.title("👨‍👩‍👧‍👦 Audit Fiscal & Optimisation PER")
 
-# 1. ANALYSE DES PLAFONDS
-st.header("1. Calcul de votre plafond disponible")
-st.info("Consultez votre dernier avis d'imposition (page 3, rubrique 'Plafond de déduction PER')")
+# 1. SITUATION FAMILIALE
+st.header("1. Votre Situation")
+situation = st.radio("Situation maritale", ["Célibataire / Divorcé(e) / Veuf(ve)", "Marié(e) / PACS (Déclaration commune)"], horizontal=True)
 
-with st.expander("Saisir vos plafonds non utilisés", expanded=True):
-    col_r, col_p = st.columns(2)
-    rev_2024 = col_r.number_input("Revenu Net Imposable 2024 (€)", value=60000, step=1000)
+is_couple = "Marié(e)" in situation
+nb_parts = st.number_input("Nombre de parts fiscales", value=2.0 if is_couple else 1.0, step=0.5)
+
+# 2. REVENUS ET PLAFONDS
+st.header("2. Revenus et Disponibles PER")
+
+if not is_couple:
+    col1, col2 = st.columns(2)
+    rev_foyer = col1.number_input("Votre Revenu Net Imposable (€)", value=50000, step=1000)
+    p1 = col2.number_input("Plafond cumulé disponible (€)", value=5000)
+    plafond_dispo_total = p1
+    mutualisation = False
+else:
+    col1, col2 = st.columns(2)
+    with col1:
+        st.subheader("Conjoint 1")
+        rev1 = st.number_input("Revenu Net Imposable C1 (€)", value=60000, step=1000)
+        p1 = st.number_input("Plafond cumulé C1 (€)", value=6000)
+    with col2:
+        st.subheader("Conjoint 2")
+        rev2 = st.number_input("Revenu Net Imposable C2 (€)", value=20000, step=1000)
+        p2 = st.number_input("Plafond cumulé C2 (€)", value=2000)
     
-    st.write("**Reliquats des années précédentes :**")
-    p_2024 = st.number_input("Plafond non utilisé pour 2024 (€)", value=0)
-    p_2023 = st.number_input("Plafond non utilisé pour 2023 (€)", value=0)
-    p_2022 = st.number_input("Plafond non utilisé pour 2022 (€)", value=0)
+    rev_foyer = rev1 + rev2
+    
+    st.markdown("---")
+    mutualisation = st.checkbox("Option 6QS : Mutualiser les plafonds des conjoints", value=False)
+    
+    if mutualisation:
+        plafond_dispo_total = p1 + p2
+        st.success(f"✅ Mutualisation activée : Plafond global du foyer = {plafond_dispo_total} €")
+    else:
+        plafond_dispo_total = p1 + p2 # On garde le total pour le slider, mais on prévient
+        st.info("ℹ️ Sans mutualisation, chaque conjoint est limité à son propre plafond.")
 
-# Calcul du plafond total
-plafond_n = rev_2024 * 0.10
-# Note : Le calcul réel prend les revenus N-1 pour le plafond N. 
-# Pour un versement en 2025, on utilise 10% des revenus 2024.
-plafond_total = plafond_n + p_2024 + p_2023 + p_2022
-
-st.metric("Capacité de versement totale", f"{round(plafond_total):,} €".replace(',', ' '))
-
-# 2. SIMULATION FISCALE
-st.header("2. Impact de votre versement")
-col_1, col_2 = st.columns(2)
-rev_2025 = col_1.number_input("Revenu estimé 2025 (€)", value=rev_2024, step=1000)
-nb_parts = col_2.number_input("Nombre de parts", value=1.0, step=0.5)
-
-# Slider limité par le plafond calculé
-versement = st.slider("Montant à verser sur le PER (€)", 0, int(plafond_total), int(plafond_n))
+# 3. SIMULATION DU VERSEMENT
+st.header("3. Simulation du versement")
+versement = st.slider("Montant total versé sur le(s) PER (€)", 0, int(plafond_dispo_total), int(p1))
 
 # Calculs
-impot_sans, tmi = simulation_fiscale(rev_2025, nb_parts)
-impot_avec, _ = simulation_fiscale(rev_2025, nb_parts, versement)
+impot_sans, tmi = simulation_fiscale(rev_foyer, nb_parts)
+impot_avec, _ = simulation_fiscale(rev_foyer, nb_parts, versement)
 gain = impot_sans - impot_avec
 
-# 3. RÉSULTATS
+# 4. RÉSULTATS
 st.divider()
-c1, c2 = st.columns(2)
-c1.metric("Économie d'impôt", f"{gain:,} €".replace(',', ' '))
-c2.metric("Taux Marginal (TMI)", f"{tmi} %")
+res1, res2, res3 = st.columns(3)
+res1.metric("Impôt avant", f"{impot_sans:,} €".replace(',', ' '))
+res2.metric("Nouvel Impôt", f"{impot_avec:,} €".replace(',', ' '))
+res3.metric("ÉCONOMIE RÉELLE", f"{gain:,} €".replace(',', ' '), delta=f"-{gain} €", delta_color="normal")
 
-st.warning(f"⚠️ Il vous reste **{round(plafond_total - versement):,} €** de plafond après ce versement.")
+st.info(f"**Analyse de l'expert :** Votre TMI est de **{tmi}%**. L'économie d'impôt représente **{round((gain/versement)*100) if versement > 0 else 0}%** de votre effort d'épargne.")
 
-# Astuce de gérant
-if tmi < 30:
-    st.info("💡 Avec une TMI à 11%, l'avantage fiscal est limité. Il est parfois judicieux de 'garder' son plafond pour des années où vos revenus seront plus élevés.")
-elif tmi >= 30:
-    st.success(f"🚀 Très forte efficacité fiscale : l'État finance {tmi}% de votre placement.")
+if is_couple and not mutualisation and versement > p1:
+    st.error(f"⚠️ Attention : Sans option 6QS, vous dépassez le plafond individuel de C1 ({p1} €).")
+Ce que cette version change pour vous :
