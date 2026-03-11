@@ -1,98 +1,89 @@
 import streamlit as st
 
-st.set_page_config(page_title="Expert PER - Optimisation", layout="wide")
+st.set_page_config(page_title="Expert PER - Précision Fiscale", layout="wide")
 
-# --- DESIGN PRO ---
+# --- STYLE CSS ---
 st.markdown("""
     <style>
     .stApp { background-color: #f8fafc; }
-    div.stNumberInput, div.stSelectbox, div.stSlider {
-        background-color: #ffffff; padding: 10px; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    }
-    h1 { color: #1e3a8a; }
-    .result-box {
-        background-color: #1e3a8a; color: white; padding: 25px; border-radius: 12px; text-align: center; margin-top: 20px;
-    }
+    .result-box { background-color: #1e3a8a; color: white; padding: 20px; border-radius: 12px; }
+    .tmi-box { background-color: #ffffff; border-left: 5px solid #f59e0b; padding: 15px; border-radius: 8px; }
     </style>
     """, unsafe_allow_html=True)
 
-def calculer_parts(situation, enfants_pleins, enfants_partages):
-    base = 2.0 if situation in ["Marié(e)", "Pacsé(e)"] else 1.0
-    total_e = 0
-    p = 0
-    for _ in range(enfants_pleins):
-        total_e += 1
-        p += 1.0 if total_e > 2 else 0.5
-    for _ in range(enfants_partages):
-        total_e += 1
-        p += 0.5 if total_e > 2 else 0.25
-    return base + p
+def calculer_impot_expert(rni, parts):
+    """Calcule l'impôt net en intégrant le plafonnement du quotient familial"""
+    def bareme(revenu_imposable):
+        if revenu_imposable <= 11294: return 0, 0
+        elif revenu_imposable <= 28797: return (revenu_imposable - 11294) * 0.11, 11
+        elif revenu_imposable <= 82341: return (revenu_imposable - 28797) * 0.30 + 1925.33, 30
+        elif revenu_imposable <= 177106: return (revenu_imposable - 82341) * 0.41 + 17988.53, 41
+        else: return (revenu_imposable - 177106) * 0.45 + 56842.18, 45
 
-def calculer_impot_net(revenu_imposable, parts):
-    # L'impôt net part du Revenu Imposable (après abattement 10%)
-    quotient = revenu_imposable / parts
-    if quotient <= 11294: i = 0
-    elif quotient <= 28797: i = (quotient - 11294) * 0.11
-    elif quotient <= 82341: i = (quotient - 28797) * 0.30 + 1925.33
-    elif quotient <= 177106: i = (quotient - 82341) * 0.41 + 17988.53
-    else: i = (quotient - 177106) * 0.45 + 56842.18
+    # 1. Calcul de l'impôt avec les parts
+    impot_plein, tmi = bareme(rni / parts)
+    impot_final = impot_plein * parts
+
+    # 2. Vérification du plafonnement (1 759€ par demi-part sup)
+    # On compare avec l'impôt pour 1 part (célib) ou 2 parts (couple)
+    parts_base = 2.0 if parts >= 2.0 else 1.0
+    impot_base_unitaire, _ = bareme(rni / parts_base)
+    impot_base = impot_base_unitaire * parts_base
     
-    impot_brut = round(i * parts)
-    # Simulation simplifiée des décotes/réductions pour coller à l'impôt "Net"
-    return impot_brut
+    reduction_max = (parts - parts_base) * 2 * 1759
+    if (impot_base - impot_final) > reduction_max:
+        impot_final = impot_base - reduction_max
+        
+    # 3. Calcul de la somme exposée à la TMI
+    seuil_tmi = 0
+    if tmi == 11: seuil_tmi = 11294
+    elif tmi == 30: seuil_tmi = 28797
+    elif tmi == 41: seuil_tmi = 82341
+    elif tmi == 45: seuil_tmi = 177106
+    
+    somme_tmi = max(0, (rni / parts) - seuil_tmi) * parts
+    
+    return round(impot_final), tmi, round(somme_tmi)
 
 # --- INTERFACE ---
-st.title("🚀 Simulateur d'Optimisation PER")
-st.write("Calculez votre gain fiscal et votre effort d'épargne réel.")
+st.title("🛡️ Optimisation PER Haute Précision")
 
-# 1. FOYER ET REVENUS
-st.header("1. Votre situation fiscale")
-c1, c2 = st.columns(2)
+c1, c2 = st.columns([1, 1.2])
 
 with c1:
-    sit = st.selectbox("Situation maritale", ["Célibataire", "Marié(e)", "Pacsé(e)"])
-    rev_imp_foyer = st.number_input("Revenu Net Imposable du foyer (€)", value=50000, step=1000, help="Somme des revenus après abattement de 10%")
+    st.header("1. Situation & Revenus")
+    sit = st.selectbox("Situation", ["Célibataire", "Marié(e) / Pacsé(e)"])
+    rev_imp = st.number_input("Revenu Net Imposable Global (€)", value=80000, step=1000)
+    ep = st.number_input("Enfants (charge pleine)", 0, 10, 2)
     
+    parts = (2.0 if sit == "Marié(e) / Pacsé(e)" else 1.0) + (0.5 if ep <= 2 else ep - 1.0) # Simplifié pour l'exemple
+    
+    st.header("2. Plafonds")
+    p1 = st.number_input("Plafond PER disponible (€)", value=10000)
+
 with c2:
-    e_p = st.number_input("Enfants (charge pleine)", 0, 10, 0)
-    e_a = st.number_input("Enfants (garde alternée)", 0, 10, 0)
+    st.header("3. Analyse & Simulation")
+    impot_actuel, tmi, exposé = calculer_impot_expert(rev_imp, parts)
+    
+    st.markdown(f"""
+    <div class="tmi-box">
+        <strong>Tranche Marginale : {tmi}%</strong><br>
+        Vous avez <b>{exposé:,} €</b> imposés à {tmi}%.<br>
+        <small>C'est le montant maximum optimisable à ce taux.</small>
+    </div>
+    """.replace(',', ' '), unsafe_allow_html=True)
+    
+    versement = st.slider("Versement PER envisagé (€)", 0, int(p1), int(exposé if exposé < p1 else p1))
+    
+    impot_apres, _, _ = calculer_impot_expert(rev_imp - versement, parts)
+    gain = impot_actuel - impot_apres
 
-nb_parts = calculer_parts(sit, e_p, e_a)
-impot_actuel = calculer_impot_net(rev_imp_foyer, nb_parts)
+    st.markdown(f"""
+    <div class="result-box">
+        <h3>Gain Fiscal : {gain:,} €</h3>
+        <p>Effort réel : {versement - gain:,} €</p>
+    </div>
+    """.replace(',', ' '), unsafe_allow_html=True)
 
-# 2. PLAFONDS PER
-st.header("2. Vos plafonds disponibles")
-st.caption("Disponibles sur votre dernier avis d'imposition (Rubrique Plafond PER)")
-cp1, cp2 = st.columns(2)
-plaf_c1 = cp1.number_input("Plafond disponible Déclarant 1 (€)", value=4000)
-if sit != "Célibataire":
-    plaf_c2 = cp2.number_input("Plafond disponible Déclarant 2 (€)", value=0)
-    mutualiser = st.checkbox("Option 6QS (Mutualisation des plafonds)", value=True)
-    plafond_max = (plaf_c1 + plaf_c2) if mutualiser else plaf_c1
-else:
-    plafond_max = plaf_c1
-
-# 3. OPTIMISATION
-st.header("3. Simulation du versement")
-versement = st.slider("Montant à placer sur le PER (€)", 0, int(plafond_max), int(plafond_max//2))
-
-# Calcul final
-impot_apres = calculer_impot_net(rev_imp_foyer - versement, nb_parts)
-economie = impot_actuel - impot_apres
-tmi = 30 if (rev_imp_foyer/nb_parts) > 28797 else 11 # Approximation TMI pour l'affichage
-
-# 4. RÉSULTATS VISUELS
 st.divider()
-res1, res2, res3 = st.columns(3)
-res1.metric("Impôt actuel", f"{impot_actuel:,} €".replace(',', ' '))
-res2.metric("Économie d'impôt", f"{economie:,} €".replace(',', ' '))
-res3.metric("Nombre de parts", f"{nb_parts}")
-
-st.markdown(f"""
-<div class="result-box">
-    <h2 style="color: white;">Effort d'épargne réel : {versement - economie:,} €</h2>
-    <p style="font-size: 1.2em;">Vous placez {versement:,} € sur votre PER pour un coût réel de {versement - economie:,} €.</p>
-</div>
-""", unsafe_allow_html=True)
-
-st.info(f"💡 **Analyse :** Votre TMI est estimée à {tmi}%. Chaque euro versé vous rapporte {tmi}% de réduction d'impôt.")
+st.info(f"💡 **Conseil de l'expert :** En versant {versement:,} €, vous effacez une partie de votre exposition à {tmi}%.")
