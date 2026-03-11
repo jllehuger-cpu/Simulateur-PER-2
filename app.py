@@ -1,65 +1,77 @@
 
 import streamlit as st
 
-# Configuration de la page pour un rendu pro sur mobile
-st.set_page_config(page_title="Expert PER - Simulation", layout="centered")
+st.set_page_config(page_title="Audit Fiscal Express", layout="centered")
 
-def calculer_impot(revenu_net_imposable, parts):
-    """Calcule l'impôt sur le revenu 2024 pour une part"""
-    # Application de l'abattement de 10% (plafonné à environ 14k, simplifié ici)
-    revenu_apres_abattement = revenu_net_imposable * 0.9
-    quotient_familial = revenu_apres_abattement / parts
+def simulation_fiscale(revenu, parts):
+    # 1. Abattement forfaitaire de 10%
+    base_imposable = revenu * 0.9
+    quotient = base_imposable / parts
     
-    # Barème 2024
-    if quotient_familial <= 11294:
-        impot = 0
-    elif quotient_familial <= 28797:
-        impot = (quotient_familial - 11294) * 0.11
-    elif quotient_familial <= 82341:
-        impot = (quotient_familial - 28797) * 0.30 + 1925.33
-    elif quotient_familial <= 177106:
-        impot = (quotient_familial - 82341) * 0.41 + 17988.53
+    # 2. Barème 2024/2025 et calcul TMI
+    tmi = 0
+    impot_par_part = 0
+    
+    if quotient <= 11294:
+        impot_par_part = 0
+        tmi = 0
+    elif quotient <= 28797:
+        impot_par_part = (quotient - 11294) * 0.11
+        tmi = 11
+    elif quotient <= 82341:
+        impot_par_part = (quotient - 28797) * 0.30 + 1925.33
+        tmi = 30
+    elif quotient <= 177106:
+        impot_par_part = (quotient - 82341) * 0.41 + 17988.53
+        tmi = 41
     else:
-        impot = (quotient_familial - 177106) * 0.45 + 56842.18
+        impot_par_part = (quotient - 177106) * 0.45 + 56842.18
+        tmi = 45
         
-    return round(impot * parts)
+    impot_total = round(impot_par_part * parts)
+    taux_moyen = round((impot_total / revenu) * 100, 2) if revenu > 0 else 0
+    
+    return impot_total, tmi, taux_moyen
 
 # --- INTERFACE ---
-st.title("🛡️ Optimisation Fiscale PER")
+st.title("📄 Estimation Avis d'Imposition 2026")
+st.write("Analyse rapide de votre situation fiscale sur les revenus 2025.")
 
-st.divider()
+# Saisie
+with st.expander("Modifier votre situation familiale", expanded=True):
+    col_a, col_b = st.columns(2)
+    rev_2025 = col_a.number_input("Revenus annuels bruts (€)", value=60000, step=1000)
+    nb_parts = col_b.number_input("Nombre de parts", value=1.0, step=0.5, min_value=1.0)
 
-# 1. SAISIE DES DONNÉES
-st.subheader("1. Votre situation actuelle")
-col1, col2 = st.columns(2)
-with col1:
-    revenu = st.number_input("Revenu Net Imposable (€)", value=50000, step=1000)
-with col2:
-    parts = st.number_input("Nombre de parts fiscales", value=1.0, step=0.5, min_value=1.0)
+# Calculs
+impot, tmi_actuelle, tx_moyen = simulation_fiscale(rev_2025, nb_parts)
 
-st.subheader("2. Votre projet")
-versement = st.slider("Montant du versement PER (€)", 0, 20000, 5000, step=500)
+# --- AFFICHAGE "FICHE FISCALE" ---
+st.markdown("---")
+st.subheader("Synthèse de votre fiscalité")
 
-# 2. CALCULS
-impot_initial = calculer_impot(revenu, parts)
-impot_apres_per = calculer_impot(revenu - versement, parts)
-economie = impot_initial - impot_apres_per
-effort_reel = versement - economie
+c1, c2, c3 = st.columns(3)
+c1.metric("Impôt estimé", f"{impot:,} €".replace(',', ' '))
+c2.metric("Tranche (TMI)", f"{tmi_actuelle} %")
+c3.metric("Taux Moyen", f"{tx_moyen} %")
 
-# 3. AFFICHAGE DES RÉSULTATS
-st.divider()
-st.subheader("Bilan de l'opération")
+# Explication pédagogique
+st.info(f"""
+**Comprendre vos chiffres :**
+* Votre **TMI ({tmi_actuelle}%)** est le taux appliqué à chaque euro supplémentaire gagné. C'est ce taux qui détermine l'efficacité d'un versement PER.
+* Votre **Taux Moyen ({tx_moyen}%)** est la part réelle de votre revenu qui part en impôt.
+""")
 
-c1, c2 = st.columns(2)
-with c1:
-    st.metric("Économie d'impôt", f"{economie:,} €".replace(',', ' '))
-    st.write(f"**Taux de subvention d'État :** {round((economie/versement)*100)}%")
+# Option PER dynamique
+st.markdown("---")
+st.subheader("Levier d'optimisation")
+vers_per = st.slider("Versement PER envisagé (€)", 0, 15000, 5000)
 
-with c2:
-    st.metric("Effort d'épargne réel", f"{effort_reel:,} €".replace(',', ' '))
-    st.write(f"Pour {versement:,}€ placés, vous ne sortez que {effort_reel:,}€ de votre poche.")
+impot_per, _, _ = simulation_fiscale(rev_2025 - vers_per, nb_parts)
+gain = impot - impot_per
 
-# 4. MESSAGE PÉDAGOGIQUE
-st.success(f"✅ En versant sur votre PER, vous transformez un impôt perdu en épargne pour votre retraite.")
-
-st.info("💡 Note : Cette simulation est donnée à titre indicatif selon le barème de l'impôt 2024. Contactez-moi pour un audit complet.")
+if gain > 0:
+    st.success(f"💰 Ce versement réduit votre impôt de **{gain:,} €**.")
+    st.write(f"Votre nouvel impôt serait de **{impot_per:,} €**.")
+else:
+    st.warning("Le montant versé ou votre tranche actuelle ne permettent pas de réduction significative.")
