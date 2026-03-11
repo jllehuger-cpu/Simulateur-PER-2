@@ -1,17 +1,15 @@
-
 import streamlit as st
 
-st.set_page_config(page_title="Audit Fiscal Express", layout="centered")
+st.set_page_config(page_title="Audit & Plafonds PER", layout="centered")
 
-def simulation_fiscale(revenu, parts):
-    # 1. Abattement forfaitaire de 10%
-    base_imposable = revenu * 0.9
+def simulation_fiscale(revenu, parts, versement_per=0):
+    # Base de calcul avec déduction du versement PER
+    base_imposable = (revenu * 0.9) - versement_per
+    if base_imposable < 0: base_imposable = 0
+    
     quotient = base_imposable / parts
     
-    # 2. Barème 2024/2025 et calcul TMI
-    tmi = 0
-    impot_par_part = 0
-    
+    # Barème 2024/2025
     if quotient <= 11294:
         impot_par_part = 0
         tmi = 0
@@ -29,49 +27,56 @@ def simulation_fiscale(revenu, parts):
         tmi = 45
         
     impot_total = round(impot_par_part * parts)
-    taux_moyen = round((impot_total / revenu) * 100, 2) if revenu > 0 else 0
-    
-    return impot_total, tmi, taux_moyen
+    return impot_total, tmi
 
 # --- INTERFACE ---
-st.title("📄 Estimation Avis d'Imposition 2026")
-st.write("Analyse rapide de votre situation fiscale sur les revenus 2025.")
+st.title("🎯 Optimisation & Plafonds PER")
 
-# Saisie
-with st.expander("Modifier votre situation familiale", expanded=True):
-    col_a, col_b = st.columns(2)
-    rev_2025 = col_a.number_input("Revenus annuels bruts (€)", value=60000, step=1000)
-    nb_parts = col_b.number_input("Nombre de parts", value=1.0, step=0.5, min_value=1.0)
+# 1. ANALYSE DES PLAFONDS
+st.header("1. Calcul de votre plafond disponible")
+st.info("Consultez votre dernier avis d'imposition (page 3, rubrique 'Plafond de déduction PER')")
+
+with st.expander("Saisir vos plafonds non utilisés", expanded=True):
+    col_r, col_p = st.columns(2)
+    rev_2024 = col_r.number_input("Revenu Net Imposable 2024 (€)", value=60000, step=1000)
+    
+    st.write("**Reliquats des années précédentes :**")
+    p_2024 = st.number_input("Plafond non utilisé pour 2024 (€)", value=0)
+    p_2023 = st.number_input("Plafond non utilisé pour 2023 (€)", value=0)
+    p_2022 = st.number_input("Plafond non utilisé pour 2022 (€)", value=0)
+
+# Calcul du plafond total
+plafond_n = rev_2024 * 0.10
+# Note : Le calcul réel prend les revenus N-1 pour le plafond N. 
+# Pour un versement en 2025, on utilise 10% des revenus 2024.
+plafond_total = plafond_n + p_2024 + p_2023 + p_2022
+
+st.metric("Capacité de versement totale", f"{round(plafond_total):,} €".replace(',', ' '))
+
+# 2. SIMULATION FISCALE
+st.header("2. Impact de votre versement")
+col_1, col_2 = st.columns(2)
+rev_2025 = col_1.number_input("Revenu estimé 2025 (€)", value=rev_2024, step=1000)
+nb_parts = col_2.number_input("Nombre de parts", value=1.0, step=0.5)
+
+# Slider limité par le plafond calculé
+versement = st.slider("Montant à verser sur le PER (€)", 0, int(plafond_total), int(plafond_n))
 
 # Calculs
-impot, tmi_actuelle, tx_moyen = simulation_fiscale(rev_2025, nb_parts)
+impot_sans, tmi = simulation_fiscale(rev_2025, nb_parts)
+impot_avec, _ = simulation_fiscale(rev_2025, nb_parts, versement)
+gain = impot_sans - impot_avec
 
-# --- AFFICHAGE "FICHE FISCALE" ---
-st.markdown("---")
-st.subheader("Synthèse de votre fiscalité")
+# 3. RÉSULTATS
+st.divider()
+c1, c2 = st.columns(2)
+c1.metric("Économie d'impôt", f"{gain:,} €".replace(',', ' '))
+c2.metric("Taux Marginal (TMI)", f"{tmi} %")
 
-c1, c2, c3 = st.columns(3)
-c1.metric("Impôt estimé", f"{impot:,} €".replace(',', ' '))
-c2.metric("Tranche (TMI)", f"{tmi_actuelle} %")
-c3.metric("Taux Moyen", f"{tx_moyen} %")
+st.warning(f"⚠️ Il vous reste **{round(plafond_total - versement):,} €** de plafond après ce versement.")
 
-# Explication pédagogique
-st.info(f"""
-**Comprendre vos chiffres :**
-* Votre **TMI ({tmi_actuelle}%)** est le taux appliqué à chaque euro supplémentaire gagné. C'est ce taux qui détermine l'efficacité d'un versement PER.
-* Votre **Taux Moyen ({tx_moyen}%)** est la part réelle de votre revenu qui part en impôt.
-""")
-
-# Option PER dynamique
-st.markdown("---")
-st.subheader("Levier d'optimisation")
-vers_per = st.slider("Versement PER envisagé (€)", 0, 50000, 5000)
-
-impot_per, _, _ = simulation_fiscale(rev_2025 - vers_per, nb_parts)
-gain = impot - impot_per
-
-if gain > 0:
-    st.success(f"💰 Ce versement réduit votre impôt de **{gain:,} €**.")
-    st.write(f"Votre nouvel impôt serait de **{impot_per:,} €**.")
-else:
-    st.warning("Le montant versé ou votre tranche actuelle ne permettent pas de réduction significative.")
+# Astuce de gérant
+if tmi < 30:
+    st.info("💡 Avec une TMI à 11%, l'avantage fiscal est limité. Il est parfois judicieux de 'garder' son plafond pour des années où vos revenus seront plus élevés.")
+elif tmi >= 30:
+    st.success(f"🚀 Très forte efficacité fiscale : l'État finance {tmi}% de votre placement.")
