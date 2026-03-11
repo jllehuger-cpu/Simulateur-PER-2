@@ -65,7 +65,7 @@ st.info(f"""
 # Option PER dynamique
 st.markdown("---")
 st.subheader("Levier d'optimisation")
-vers_per = st.slider("Versement PER envisagé (€)", 0, 15000, 5000)
+vers_per = st.slider("Versement PER envisagé (€)", 0, 50000, 5000)
 
 impot_per, _, _ = simulation_fiscale(rev_2025 - vers_per, nb_parts)
 gain = impot - impot_per
