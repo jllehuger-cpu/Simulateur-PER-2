@@ -26,7 +26,6 @@ def calculer_impot(revenu_net_imposable, parts):
 
 # --- INTERFACE ---
 st.title("🛡️ Optimisation Fiscale PER")
-st.write("Ancien gérant de fortune, je vous aide à simuler l'impact immédiat d'un versement PER sur votre fiscalité.")
 
 st.divider()
 
