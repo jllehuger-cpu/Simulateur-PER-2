@@ -26,7 +26,7 @@ def calculer_impot(revenu_net_imposable, parts):
 
 # --- INTERFACE ---
 st.title("🛡️ Optimisation Fiscale PER")
-
+st.title("🛡️ nino le plus beau")
 st.divider()
 
 # 1. SAISIE DES DONNÉES
