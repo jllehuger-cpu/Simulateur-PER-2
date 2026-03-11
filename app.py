@@ -84,4 +84,4 @@ st.info(f"**Analyse de l'expert :** Votre TMI est de **{tmi}%**. L'économie d'i
 
 if is_couple and not mutualisation and versement > p1:
     st.error(f"⚠️ Attention : Sans option 6QS, vous dépassez le plafond individuel de C1 ({p1} €).")
-Ce que cette version change pour vous :
+
