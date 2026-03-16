@@ -1,5 +1,33 @@
 import streamlit as st
 
+def check_password():
+    """Retourne True si l'utilisateur a saisi le bon mot de passe."""
+    def password_entered():
+        if st.session_state["password"] == "Lazard2024": # VOTRE MOT DE PASSE
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # On ne garde pas le mdp en mémoire
+        else:
+            st.session_state["password_correct"] = False
+
+    if "password_correct" not in st.session_state:
+        # Affichage du formulaire de connexion
+        st.markdown("## 🔒 Accès Restreint")
+        st.text_input("Veuillez saisir le code d'accès fourni par votre conseiller", 
+                      type="password", on_change=password_entered, key="password")
+        return False
+    elif not st.session_state["password_correct"]:
+        st.error("😕 Code incorrect.")
+        st.text_input("Veuillez saisir le code d'accès", type="password", 
+                      on_change=password_entered, key="password")
+        return False
+    else:
+        return True
+
+# --- LOGIQUE D'AFFICHAGE ---
+if check_password():
+    # TOUT VOTRE CODE ACTUEL (Titres, Colonnes, Simulateurs) VA ICI
+    st.success("Accès autorisé. Bienvenue dans votre espace privé.")
+
 # 1. Configuration de la page (DOIT être la première commande)
 st.set_page_config(
     page_title="Lehuger Gestion Privée | Cabinet Patrimonial",
