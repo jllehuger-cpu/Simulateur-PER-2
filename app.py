@@ -124,10 +124,3 @@ with c2:
 
 
 
-### Ce qui a été ajouté :
-* **Détail explicite** : Sous l'impôt total, j'ai ajouté deux lignes : "Impôt sur le Revenu" et "CEHR". Si la CEHR est à 0, elle s'affiche quand même à 0.
-* **Calcul du gain CEHR** : Le simulateur calcule maintenant séparément combien vous gagnez sur l'IR et combien vous gagnez sur la CEHR. 
-* **Calcul du RFR après PER** : Le code déduit bien le versement PER du RFR pour le calcul de la taxe (ce qui est l'avantage majeur du PER pour les très hauts revenus).
-
-**Serait-il utile d'ajouter un bouton pour générer un petit récapitulatif textuel que vous pourriez copier-coller dans un mail pour votre client ?**
-
