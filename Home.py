@@ -2,7 +2,7 @@ import streamlit as st
 
 # 1. Configuration de la page (DOIT être la première commande)
 st.set_page_config(
-    page_title="Lazard & Associés | Cabinet Patrimonial",
+    page_title="Lehuger Gestion Privée | Cabinet Patrimonial",
     page_icon="⚖️",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -66,7 +66,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # 3. En-tête / Bannière
-st.markdown("<h1>Lazard & Associés</h1>", unsafe_allow_html=True)
+st.markdown("<h1>Lehuger Gestion Privée</h1>", unsafe_allow_html=True)
 st.markdown("### Conseil en Stratégie Patrimoniale & Fiscale")
 
 st.markdown("""
@@ -102,6 +102,6 @@ st.write("---")
 # 5. Pied de page pro
 c_left, c_right = st.columns([2, 1])
 with c_left:
-    st.caption("© 2026 Lazard & Associés - Cabinet Indépendant - Le Mans")
+    st.caption("© 2026 Lehuger Gestion Privée - Cabinet Indépendant ")
 with c_right:
     st.info("📍 **Contact :** Pour un audit complet, prenez rendez-vous.")
