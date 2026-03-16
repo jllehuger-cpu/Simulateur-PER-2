@@ -1,136 +1,98 @@
 import streamlit as st
 
-def check_password():
-    """Retourne True si l'utilisateur a saisi le bon mot de passe."""
-    def password_entered():
-        if st.session_state["password"] == "Lazard2024": # VOTRE MOT DE PASSE
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # On ne garde pas le mdp en mémoire
-        else:
-            st.session_state["password_correct"] = False
-
-    if "password_correct" not in st.session_state:
-        # Affichage du formulaire de connexion
-        st.markdown("## 🔒 Accès Restreint")
-        st.text_input("Veuillez saisir le code d'accès fourni par votre conseiller", 
-                      type="password", on_change=password_entered, key="password")
-        return False
-    elif not st.session_state["password_correct"]:
-        st.error("😕 Code incorrect.")
-        st.text_input("Veuillez saisir le code d'accès", type="password", 
-                      on_change=password_entered, key="password")
-        return False
-    else:
-        return True
-
-# --- LOGIQUE D'AFFICHAGE ---
-if check_password():
-    # TOUT VOTRE CODE ACTUEL (Titres, Colonnes, Simulateurs) VA ICI
-    st.success("Accès autorisé. Bienvenue dans votre espace privé.")
-
-# 1. Configuration de la page (DOIT être la première commande)
+# 1. CONFIGURATION DE LA PAGE
 st.set_page_config(
-    page_title="Lehuger Gestion Privée | Cabinet Patrimonial",
-    page_icon="⚖️",
-    layout="wide",
-    initial_sidebar_state="expanded"
+    page_title="Lehuger Patrimoine | Espace Privé", 
+    layout="wide", 
+    page_icon="🏛️"
 )
 
-# 2. Injection du CSS de Luxe
-st.markdown("""
-    <style>
-    /* Fond de l'application */
-    .stApp {
-        background-color: #f4f7f9;
-    }
-    
-    /* Style des titres */
-    h1 {
-        color: #1a2a4e !important;
-        font-family: 'Playfair Display', serif;
-        font-size: 3rem !important;
-        padding-bottom: 20px;
-    }
-    
-    h3 {
-        color: #b8974f !important; /* Couleur Or */
-        font-family: 'Montserrat', sans-serif;
-        text-transform: uppercase;
-        letter-spacing: 1px;
+# 2. INITIALISATION DU PROFIL CLIENT (Partagé entre les pages)
+if 'user_data' not in st.session_state:
+    st.session_state['user_data'] = {
+        'rni': 100000,
+        'parts': 1.0,
+        'age': 45,
+        'situation': "Célibataire"
     }
 
-    /* Style des boutons du menu */
-    .stButton>button {
-        width: 100%;
-        border-radius: 5px;
-        height: 3em;
-        background-color: #1a2a4e;
-        color: white;
-        border: none;
-        transition: all 0.3s;
-    }
-    
-    .stButton>button:hover {
-        background-color: #b8974f;
-        color: white;
-        transform: translateY(-2px);
-    }
+# 3. SYSTÈME DE SÉCURITÉ
+def check_password():
+    if "password_correct" not in st.session_state:
+        st.session_state["password_correct"] = False
 
-    /* Boîtes d'information stylisées */
-    .expert-card {
-        background-color: white;
-        padding: 25px;
-        border-radius: 15px;
-        border-left: 8px solid #b8974f;
-        box-shadow: 0 10px 25px rgba(0,0,0,0.05);
-        margin-bottom: 25px;
-    }
+    if not st.session_state["password_correct"]:
+        st.markdown("<h1 style='text-align: center;'>🏛️ Lehuger Patrimoine</h1>", unsafe_allow_html=True)
+        st.markdown("<h3 style='text-align: center; color: #b8974f;'>Accès Client Sécurisé</h3>", unsafe_allow_html=True)
+        
+        col_login_1, col_login_2, col_login_3 = st.columns([1, 2, 1])
+        with col_login_2:
+            pwd = st.text_input("Veuillez saisir votre code d'accès :", type="password")
+            if st.button("Se connecter", use_container_width=True):
+                if pwd == "Lehuger2024": # Ton mot de passe
+                    st.session_state["password_correct"] = True
+                    st.rerun()
+                else:
+                    st.error("Code erroné. Veuillez contacter votre conseiller.")
+        return False
+    return True
+
+# 4. EXÉCUTION DU SITE (Affiché uniquement si le mot de passe est OK)
+if check_password():
     
-    /* Masquer le logo Streamlit pour plus de pro */
-    #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    </style>
+    # CSS Personnalisé "Lehuger Patrimoine"
+    st.markdown("""
+        <style>
+        .stApp { background-color: #fdfdfd; }
+        h1 { color: #1a2a4e !important; font-family: 'Georgia', serif; }
+        h3 { color: #b8974f !important; }
+        .expert-card {
+            background-color: white; padding: 25px; border-radius: 12px;
+            border-top: 4px solid #b8974f; box-shadow: 0 8px 20px rgba(0,0,0,0.05);
+            margin-bottom: 20px;
+        }
+        .stButton>button { background-color: #1a2a4e; color: white; border-radius: 5px; }
+        .stButton>button:hover { border: 1px solid #b8974f; color: #b8974f; }
+        </style>
     """, unsafe_allow_html=True)
 
-# 3. En-tête / Bannière
-st.markdown("<h1>Lehuger Gestion Privée</h1>", unsafe_allow_html=True)
-st.markdown("### Conseil en Stratégie Patrimoniale & Fiscale")
+    st.markdown("<h1>🏛️ Lehuger Patrimoine</h1>", unsafe_allow_html=True)
+    st.markdown("### Conseil en Stratégie Patrimoniale")
 
-st.markdown("""
-<div class="expert-card">
-    <b>Bienvenue sur votre espace d'audit privé.</b><br>
-    Cet outil exclusif vous permet d'analyser vos leviers de croissance selon la méthode des trois piliers : 
-    la protection civile, l'optimisation fiscale et l'ingénierie financière.
-</div>
-""", unsafe_allow_html=True)
+    # --- SECTION PROFIL ---
+    with st.container():
+        st.markdown('<div class="expert-card">', unsafe_allow_html=True)
+        st.markdown("#### 👤 Configuration de votre Profil Unique")
+        st.write("Modifiez ces données pour mettre à jour l'ensemble des simulateurs.")
+        
+        c1, c2, c3 = st.columns(3)
+        with c1:
+            st.session_state['user_data']['rni'] = st.number_input("Revenu Net Imposable (€)", value=st.session_state['user_data']['rni'], step=5000)
+        with c2:
+            st.session_state['user_data']['parts'] = st.number_input("Nombre de parts", value=st.session_state['user_data']['parts'], step=0.5)
+        with c3:
+            st.session_state['user_data']['age'] = st.number_input("Âge de l'utilisateur", value=st.session_state['user_data']['age'], step=1)
+        st.markdown('</div>', unsafe_allow_html=True)
 
-st.write("---")
+    st.write("---")
 
-# 4. Le Dashboard (Les 3 Piliers) - Version corrigée
-col1, col2, col3 = st.columns(3)
+    # --- SECTION NAVIGATION ---
+    st.subheader("🛠️ Vos Outils d'Analyse")
+    col1, col2, col3 = st.columns(3)
 
-with col1:
-    st.markdown("### ⚖️ Civil")
-    st.write("Protéger vos proches et organiser la transmission.")
-    if st.button("Audit Démembrement", key="btn_civil"):
-        st.switch_page("pages/2_🔑_Demembrement.py")
+    with col1:
+        st.info("**ANALYSE FISCALE**\n\nOptimisation de l'IR et leviers de défiscalisation.")
+        if st.button("Accéder au Simulateur PER", use_container_width=True):
+            st.switch_page("pages/1_💻_Audit_Fiscal.py")
 
-with col2:
-    st.markdown("### 📉 Fiscal")
-    st.write("Transformer l'impôt en capital via le levier PER.")
-    if st.button("Optimisation PER", key="btn_fiscal"):
-        st.switch_page("pages/1_💻_Audit_Fiscal.py")
+    with col2:
+        st.info("**ANALYSE CIVILE**\n\nOrganisation de la transmission et démembrement.")
+        if st.button("Calcul de Démembrement", use_container_width=True):
+            st.switch_page("pages/2_🔑_Demembrement.py")
 
-with col3:
-    st.markdown("### 💰 Financier")
-    st.write("Maximiser le rendement tout en maîtrisant le risque.")
-    if st.button("Projection & Risque", key="btn_finance"):
-        st.switch_page("pages/4_💰_Analyse_Financiere.py")
+    with col3:
+        st.info("**ANALYSE FINANCIÈRE**\n\nProfil de risque et projections long terme.")
+        if st.button("Projection de Capital", use_container_width=True):
+            st.switch_page("pages/4_💰_Analyse_Financiere.py")
 
-# 5. Pied de page pro
-c_left, c_right = st.columns([2, 1])
-with c_left:
-    st.caption("© 2026 Lehuger Gestion Privée - Cabinet Indépendant ")
-with c_right:
-    st.info("📍 **Contact :** Pour un audit complet, prenez rendez-vous.")
+    st.markdown("<br><br><p style='text-align:center; color:gray;'>Lehuger Patrimoine - Le Mans - 2026</p>", unsafe_allow_html=True)
