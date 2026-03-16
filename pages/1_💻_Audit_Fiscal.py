@@ -1,5 +1,10 @@
 import streamlit as st
 
+# Vérification de sécurité sur chaque page
+if "password_correct" not in st.session_state or not st.session_state["password_correct"]:
+    st.warning("Veuillez vous connecter sur la page d'accueil pour accéder à cet outil.")
+    st.stop() # Arrête l'exécution du reste de la page
+
 st.set_page_config(page_title="Audit Fiscal", layout="wide")
 
 def calculer_impot_complet(rni, rfr, parts, situation):
