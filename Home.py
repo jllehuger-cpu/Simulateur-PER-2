@@ -1,3 +1,30 @@
+st.markdown("""
+    <style>
+    /* Changer la police et la couleur du fond */
+    .stApp {
+        background-color: #FDFDFD;
+    }
+    /* Personnaliser les titres */
+    h1 {
+        color: #1E3A8A; /* Bleu Marine de luxe */
+        font-family: 'Helvetica Neue', sans-serif;
+        font-weight: 800;
+    }
+    /* Cartes blanches pour les résultats */
+    .stMetric {
+        background-color: #FFFFFF;
+        padding: 15px;
+        border-radius: 10px;
+        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
+        border: 1px solid #E5E7EB;
+    }
+    /* Cacher le menu Streamlit en haut à droite */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    </style>
+    """, unsafe_allow_html=True)
+
 import streamlit as st
 
 st.set_page_config(page_title="Expert Patrimoine - Le Mans", layout="wide", page_icon="🏛️")
