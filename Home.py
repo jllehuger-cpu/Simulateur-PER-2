@@ -1,63 +1,72 @@
 import streamlit as st
 
-# 1. CONFIGURATION
-st.set_page_config(page_title="Lehuger Patrimoine | Conseil au Mans", layout="wide", page_icon="🏛️")
+# 1. CONFIGURATION (Doit être la première commande)
+st.set_page_config(
+    page_title="Lehuger Patrimoine | Conseil au Mans", 
+    layout="wide", 
+    page_icon="🏛️"
+)
 
-# 2. INITIALISATION DATA
+# 2. INITIALISATION DES DONNÉES (Session State)
 if 'user_data' not in st.session_state:
     st.session_state['user_data'] = {'rni': 100000, 'parts': 1.0, 'age': 45}
 
-# 3. DESIGN CSS AVANCÉ
+if "password_correct" not in st.session_state:
+    st.session_state["password_correct"] = False
+
+# 3. DESIGN CSS (Look & Feel Pro)
 st.markdown("""
     <style>
-    /* Import de polices élégantes */
     @import url('https://fonts.googleapis.com/css2?family=Playfair+Display:wght@700&family=Montserrat:wght@300;400;600&display=swap');
 
     .stApp { background-color: #fdfdfd; }
     
     .hero-section {
         background-color: #1a2a4e;
-        padding: 80px 40px;
-        border-radius: 0 0 50px 50px;
+        padding: 60px 20px;
+        border-radius: 0 0 30px 30px;
         color: white;
         text-align: center;
         margin: -60px -20px 40px -20px;
     }
     
-    .hero-title { font-family: 'Playfair Display', serif; font-size: 3.5rem; color: #b8974f; }
-    .hero-subtitle { font-family: 'Montserrat', sans-serif; font-size: 1.2rem; opacity: 0.9; }
+    .hero-title { font-family: 'Playfair Display', serif; font-size: 3rem; color: #b8974f; }
+    .hero-subtitle { font-family: 'Montserrat', sans-serif; font-size: 1.1rem; opacity: 0.9; }
     
     .section-title {
         font-family: 'Playfair Display', serif;
         color: #1a2a4e;
         text-align: center;
-        margin-top: 50px;
-        font-size: 2.2rem;
+        margin: 40px 0 20px 0;
+        font-size: 2rem;
     }
     
     .card {
         background-color: white;
-        padding: 30px;
-        border-radius: 15px;
-        box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-        border-bottom: 3px solid #b8974f;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        border-bottom: 4px solid #b8974f;
         height: 100%;
+        color: #333;
     }
     
     .expert-bio {
         background-color: #f4f7f9;
-        padding: 40px;
-        border-radius: 20px;
-        margin: 40px 0;
+        padding: 30px;
+        border-radius: 15px;
+        margin: 20px 0;
+        border-left: 5px solid #1a2a4e;
     }
     
     .login-box {
         background-color: #ffffff;
-        padding: 40px;
-        border: 2px solid #b8974f;
-        border-radius: 20px;
+        padding: 30px;
+        border: 1px solid #b8974f;
+        border-radius: 15px;
         max-width: 500px;
-        margin: 40px auto;
+        margin: 20px auto;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.1);
     }
     </style>
     """, unsafe_allow_html=True)
@@ -71,7 +80,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # --- SECTION 2 : LES 3 PILIERS ---
-st.markdown("<div class="section-title">Notre Expertise</div>", unsafe_allow_html=True)
+st.markdown('<div class="section-title">Notre Expertise</div>', unsafe_allow_html=True)
 c1, c2, c3 = st.columns(3)
 
 with c1:
@@ -93,11 +102,11 @@ with c3:
     </div>""", unsafe_allow_html=True)
 
 # --- SECTION 3 : QUI SUIS-JE ---
-st.markdown("<div class="section-title">Votre Partenaire de Confiance</div>", unsafe_allow_html=True)
+st.markdown('<div class="section-title">Votre Partenaire de Confiance</div>', unsafe_allow_html=True)
 col_img, col_txt = st.columns([1, 2])
 
 with col_img:
-    # Remplacez par votre photo si vous l'hébergez sur GitHub
+    # Image par défaut - Vous pourrez la remplacer par votre photo pro
     st.image("https://images.unsplash.com/photo-1560250097-0b93528c311a?auto=format&fit=crop&q=80&w=400", caption="Expert Lehuger Patrimoine")
 
 with col_txt:
@@ -113,11 +122,8 @@ with col_txt:
 st.write("---")
 
 # --- SECTION 4 : ACCÈS AUDIT ---
-if "password_correct" not in st.session_state:
-    st.session_state["password_correct"] = False
-
 if not st.session_state["password_correct"]:
-    st.markdown("<div class="section-title">Accéder à votre Espace Audit</div>", unsafe_allow_html=True)
+    st.markdown('<div class="section-title">Accéder à votre Espace Audit</div>', unsafe_allow_html=True)
     with st.container():
         st.markdown('<div class="login-box">', unsafe_allow_html=True)
         pwd = st.text_input("Saisissez votre code client pour débloquer les simulateurs :", type="password")
@@ -131,22 +137,32 @@ if not st.session_state["password_correct"]:
 else:
     # AFFICHAGE DES SIMULATEURS UNE FOIS CONNECTÉ
     st.success("✅ Accès Client autorisé")
+    
     st.markdown('<div class="card">', unsafe_allow_html=True)
-    st.subheader("👤 Mise à jour de votre profil")
+    st.subheader("👤 Votre Profil Audit")
+    st.info("Les données saisies ici seront appliquées à tous les simulateurs.")
     p1, p2, p3 = st.columns(3)
-    st.session_state['user_data']['rni'] = p1.number_input("Revenu Net Imposable", value=st.session_state['user_data']['rni'])
+    st.session_state['user_data']['rni'] = p1.number_input("Revenu Net Imposable", value=st.session_state['user_data']['rni'], step=5000)
     st.session_state['user_data']['parts'] = p2.number_input("Parts Fiscales", value=st.session_state['user_data']['parts'], step=0.5)
-    st.session_state['user_data']['age'] = p3.number_input("Âge", value=st.session_state['user_data']['age'])
+    st.session_state['user_data']['age'] = p3.number_input("Âge", value=st.session_state['user_data']['age'], step=1)
     st.markdown('</div>', unsafe_allow_html=True)
     
-    st.write("### 🛠️ Lancez une analyse")
+    st.write("### 🛠️ Sélectionnez un simulateur")
     n1, n2, n3 = st.columns(3)
-    if n1.button("Simulateur PER", use_container_width=True): st.switch_page("pages/1_💻_Audit_Fiscal.py")
-    if n2.button("Simulateur Démembrement", use_container_width=True): st.switch_page("pages/2_🔑_Demembrement.py")
-    if n3.button("Analyse Financière", use_container_width=True): st.switch_page("pages/4_💰_Analyse_Financiere.py")
+    if n1.button("📉 Simulateur PER", use_container_width=True): st.switch_page("pages/1_💻_Audit_Fiscal.py")
+    if n2.button("🔑 Démembrement", use_container_width=True): st.switch_page("pages/2_🔑_Demembrement.py")
+    if n3.button("💰 Analyse Financière", use_container_width=True): st.switch_page("pages/4_💰_Analyse_Financiere.py")
     
+    st.write("")
     if st.button("Se déconnecter"):
         st.session_state["password_correct"] = False
         st.rerun()
 
-st.markdown("<br><br><p style='text-align:center; color:#999;'>Lehuger Patrimoine | Le Mans | Mentions Légales | 2026</p>", unsafe_allow_html=True)
+# --- FOOTER ---
+st.markdown("""
+    <br><br>
+    <div style='text-align:center; color:#999; font-size: 0.8rem; border-top: 1px solid #eee; padding-top: 20px;'>
+        Lehuger Patrimoine | Le Mans | Mentions Légales | ORIAS n° XXXXXXXX<br>
+        Conseil en Investissements Financiers (CIF)
+    </div>
+    """, unsafe_allow_html=True)
