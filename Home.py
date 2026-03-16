@@ -79,25 +79,26 @@ st.markdown("""
 
 st.write("---")
 
-# 4. Le Dashboard (Les 3 Piliers)
+# 4. Le Dashboard (Les 3 Piliers) - Version corrigée
 col1, col2, col3 = st.columns(3)
 
 with col1:
     st.markdown("### ⚖️ Civil")
-    st.write("Protéger vos proches et organiser la transmission de votre patrimoine.")
-    st.button("Audit Démembrement", key="btn_civil", on_click=lambda: st.switch_page("pages/2_🔑_Demembrement.py"))
+    st.write("Protéger vos proches et organiser la transmission.")
+    if st.button("Audit Démembrement", key="btn_civil"):
+        st.switch_page("pages/2_🔑_Demembrement.py")
 
 with col2:
     st.markdown("### 📉 Fiscal")
-    st.write("Identifier les niches fiscales et transformer l'impôt en capital.")
-    st.button("Optimisation PER", key="btn_fiscal", on_click=lambda: st.switch_page("pages/1_💻_Audit_Fiscal.py"))
+    st.write("Transformer l'impôt en capital via le levier PER.")
+    if st.button("Optimisation PER", key="btn_fiscal"):
+        st.switch_page("pages/1_💻_Audit_Fiscal.py")
 
 with col3:
     st.markdown("### 💰 Financier")
-    st.write("Maximiser le rendement de vos actifs tout en maîtrisant le risque.")
-    st.button("Projection & Risque", key="btn_finance", on_click=lambda: st.switch_page("pages/4_💰_Analyse_Financiere.py"))
-
-st.write("---")
+    st.write("Maximiser le rendement tout en maîtrisant le risque.")
+    if st.button("Projection & Risque", key="btn_finance"):
+        st.switch_page("pages/4_💰_Analyse_Financiere.py")
 
 # 5. Pied de page pro
 c_left, c_right = st.columns([2, 1])
